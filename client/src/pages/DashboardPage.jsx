@@ -1,4 +1,4 @@
-import { FiActivity, FiSun, FiTrendingUp } from 'react-icons/fi';
+import { FiActivity, FiDroplet } from 'react-icons/fi';
 import WaterIntake from '@/components/WaterIntake';
 import { motion } from 'framer-motion';
 
@@ -19,7 +19,7 @@ const cardVariants = {
   }
 };
 
-const Dashboard = () => {
+const DashboardPage = () => {
   // Mock data - replace with actual data from your API
   const nutritionData = {
     calories: {
@@ -27,15 +27,15 @@ const Dashboard = () => {
       goal: 2000,
       unit: 'kcal'
     },
+    water: {
+      consumed: 4,
+      goal: 8,
+      unit: 'glasses'
+    },
     macros: {
       protein: { value: 95, goal: 150, unit: 'g' },
       carbs: { value: 150, goal: 250, unit: 'g' },
       fat: { value: 40, goal: 70, unit: 'g' },
-    },
-    water: {
-      consumed: 4,
-      goal: 8,
-      unit: 'cups'
     }
   };
 
@@ -57,16 +57,9 @@ const Dashboard = () => {
         animate={{ opacity: 1, y: 0 }}
         className="flex flex-col space-y-2"
       >
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-          {getGreeting()}, User!
-        </h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{getGreeting()}, User!</h1>
         <p className="text-gray-500 dark:text-gray-400">
-          {new Date().toLocaleDateString('en-US', { 
-            weekday: 'long', 
-            year: 'numeric', 
-            month: 'long', 
-            day: 'numeric' 
-          })}
+          {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
         </p>
       </motion.div>
 
@@ -83,16 +76,15 @@ const Dashboard = () => {
         </motion.div>
 
         {/* Macros */}
-        {Object.entries(nutritionData.macros).map(([key, { value, goal, unit }]) => (
+        {Object.entries(nutritionData.macros).map(([key, { value, goal, unit }], index) => (
           <motion.div 
-            key={key}
+            key={key} 
             variants={cardVariants}
             className="p-6 bg-white rounded-lg shadow dark:bg-gray-800"
+            custom={index}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-lg font-medium text-gray-900 dark:text-white capitalize">
-                {key}
-              </h3>
+              <h3 className="text-lg font-medium text-gray-900 dark:text-white capitalize">{key}</h3>
               <div className="p-2 rounded-full bg-blue-100 dark:bg-blue-900/30">
                 <FiActivity className="w-4 h-4 text-blue-500" />
               </div>
@@ -100,13 +92,10 @@ const Dashboard = () => {
             <div className="mt-4">
               <div className="text-3xl font-bold text-gray-900 dark:text-white">
                 {value}
-                <span className="text-sm font-normal text-gray-500">
-                  {' '}
-                  / {goal} {unit}
-                </span>
+                <span className="text-sm font-normal text-gray-500"> / {goal} {unit}</span>
               </div>
               <div className="w-full h-2 mt-2 bg-gray-200 rounded-full dark:bg-gray-700">
-                <div
+                <div 
                   className="h-full bg-blue-500 rounded-full"
                   style={{ width: `${calculatePercentage(value, goal)}%` }}
                 ></div>
@@ -116,38 +105,35 @@ const Dashboard = () => {
         ))}
       </motion.div>
 
-      {/* Today's Meals */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.2 }}
+      {/* Recent Meals */}
+      <motion.div 
+        initial="offscreen"
+        whileInView="onscreen"
+        viewport={{ once: true, amount: 0.2 }}
         className="p-6 bg-white rounded-lg shadow dark:bg-gray-800"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-            Today's Meals
-          </h2>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Today's Meals</h2>
           <button className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700">
             + Add Meal
           </button>
         </div>
-
+        
         <div className="mt-4 space-y-4">
           {['Breakfast', 'Lunch', 'Dinner', 'Snacks'].map((meal) => (
-            <div
+            <motion.div 
               key={meal}
+              variants={cardVariants}
               className="p-4 border border-gray-200 rounded-lg dark:border-gray-700"
             >
               <div className="flex items-center justify-between">
-                <h3 className="font-medium text-gray-900 dark:text-white">
-                  {meal}
-                </h3>
+                <h3 className="font-medium text-gray-900 dark:text-white">{meal}</h3>
                 <span className="text-sm text-gray-500">0 items • 0 kcal</span>
               </div>
               <button className="w-full mt-2 py-2 text-sm text-center text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 dark:bg-blue-900/30 dark:text-blue-400">
                 + Add {meal}
               </button>
-            </div>
+            </motion.div>
           ))}
         </div>
       </motion.div>
@@ -155,4 +141,4 @@ const Dashboard = () => {
   );
 };
 
-export default Dashboard;
+export default DashboardPage;

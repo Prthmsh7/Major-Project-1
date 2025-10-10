@@ -3,14 +3,12 @@
 @tailwind utilities;
 @import "tailwindcss";
 
-/* Base reset */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
 }
 
-/* Root element */
 #root {
   min-height: 100vh;
   width: 100%;
@@ -18,18 +16,14 @@
   flex-direction: column;
 }
 
-/* Smooth scrolling */
 html {
   scroll-behavior: smooth;
 }
-
-/* Focus styles for accessibility */
 :focus-visible {
   outline: 2px solid var(--primary);
   outline-offset: 2px;
 }
 
-/* Utility classes */
 .sr-only {
   position: absolute;
   width: 1px;
@@ -42,7 +36,6 @@ html {
   border: 0;
 }
 
-/* Animation utilities */
 .animate-fade-in {
   animation: fadeIn 0.3s ease-in-out;
 }
@@ -52,7 +45,6 @@ html {
   to { opacity: 1; }
 }
 
-/* Custom scrollbar - adapts to theme */
 ::-webkit-scrollbar {
   width: 8px;
 }
@@ -79,7 +71,6 @@ body.light ::-webkit-scrollbar-thumb {
   background: #555555;
 }
 
-/* Selection - adapts to theme */
 body.dark ::selection {
   background-color: #333333;
   color: #ffffff;
@@ -90,7 +81,6 @@ body.light ::selection {
   color: #1C1C1C;
 }
 
-/* Focus styles - adapts to theme */
 *:focus {
   outline: 2px solid var(--dark-accent);
   outline-offset: 2px;
@@ -101,7 +91,6 @@ body.light *:focus {
   outline: 2px solid var(--light-accent);
 }
 
-/* Button base reset */
 button {
   background: none;
   border: none;
@@ -110,7 +99,6 @@ button {
   transition: all 0.2s ease-in-out;
 }
 
-/* Input, Select, Textarea base styles - adapts to theme */
 input,
 select,
 textarea {
@@ -152,7 +140,6 @@ body.light textarea:focus {
   box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
 }
 
-/* Autocomplete styles for inputs - adapts to theme */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,
 input:-webkit-autofill:focus,
@@ -171,13 +158,10 @@ body.light input:-webkit-autofill:active {
   border-color: var(--light-input-border) !important;
 }
 
-/* Link reset */
 a {
   color: inherit;
   text-decoration: none;
 }
-
-/* Utility classes */
 .text-center {
   text-align: center;
 }

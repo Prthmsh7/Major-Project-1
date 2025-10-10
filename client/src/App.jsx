@@ -1,78 +1,125 @@
-import { useState, useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import LandingPage from '@/components/LandingPage';
-import Dashboard from '@/components/Dashboard';
-import AuthPage from '@/components/AuthPage';
+import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from '@/contexts/AuthContext';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 
-function AppContent() {
+// Pages
+import AuthPage from '@/components/AuthPage';
+import DashboardPage from '@/pages/DashboardPage';
+import NutritionPage from '@/pages/NutritionPage';
+import MealPlanningPage from '@/pages/MealPlanningPage';
+
+// Layouts
+import DashboardLayout from '@/components/dashboard/DashboardLayout';
+
+/**
+ * Authentication Check Component
+ * Shows loading state while checking authentication
+ */
+const AuthCheck = ({ children }) => {
   const { user, loading } = useAuth();
-  const { theme, setTheme } = useTheme();
   const location = useLocation();
-
-  // Set theme based on route
-  useEffect(() => {
-    if (location.pathname === '/') {
-      setTheme('dark');
-    } else {
-      setTheme('light');
-    }
-  }, [location.pathname, setTheme]);
-
-  // Apply theme to body
-  useEffect(() => {
-    document.body.className = theme;
-  }, [theme]);
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 mb-4"></div>
-          <div className="h-4 w-32 bg-gray-200 dark:bg-gray-700 rounded"></div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading...</p>
         </div>
       </div>
     );
   }
 
-  return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900 transition-colors duration-200">
-      <Routes>
-        <Route 
-          path="/" 
-          element={
-            user ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <LandingPage />
-            )
-          } 
-        />
-        <Route 
-          path="/auth" 
-          element={user ? <Navigate to="/dashboard" replace /> : <AuthPage />} 
-        />
-        <Route 
-          path="/dashboard/*" 
-          element={user ? <Dashboard /> : <Navigate to="/auth" replace />} 
-        />
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </div>
-  )
-}
+  return children;
+};
 
+/**
+ * Protected Route Component
+ * Redirects to /auth if user is not authenticated
+ */
+const ProtectedRoute = () => {
+  const { user } = useAuth();
+  const location = useLocation();
+
+  if (!user) {
+    return <Navigate to="/auth" state={{ from: location }} replace />;
+  }
+
+  return <Outlet />;
+};
+
+/**
+ * Public Route Component
+ * Only accessible when not authenticated
+ */
+const PublicRoute = () => {
+  const { user } = useAuth();
+  
+  if (user) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <Outlet />;
+};
+
+/**
+ * App Routes Component
+ * Handles all the routing logic
+ */
+const AppRoutes = () => {
+  return (
+    <Routes>
+      {/* Public Routes - Only accessible when not logged in */}
+      <Route element={<PublicRoute />}>
+        <Route path="/auth" element={<AuthPage />} />
+        <Route path="/" element={<Navigate to="/auth" replace />} />
+      </Route>
+
+      {/* Protected Routes - Only accessible when logged in */}
+      <Route element={<ProtectedRoute />}>
+        <Route element={<DashboardLayout />}>
+          <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/meal-planning" element={<MealPlanningPage />} />
+          <Route path="/nutrition" element={<NutritionPage />} />
+        </Route>
+      </Route>
+
+      {/* Catch all other routes */}
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
+  );
+};
+
+/**
+ * App Content Component
+ * Wraps the app with theme and auth providers
+ */
+const AppContent = () => {
+  const { theme } = useTheme();
+
+  return (
+    <div className={`min-h-screen ${theme}`}>
+      <AuthCheck>
+        <AppRoutes />
+      </AuthCheck>
+    </div>
+  );
+};
+
+/**
+ * Main App Component
+ * Wraps the app with required providers
+ */
 function App() {
   return (
     <Router>
-      <ThemeProvider>
-        <AuthProvider>
+      <AuthProvider>
+        <ThemeProvider>
           <AppContent />
-        </AuthProvider>
-      </ThemeProvider>
+        </ThemeProvider>
+      </AuthProvider>
     </Router>
-  )
+  );
 }
 
-export default App
+export default App;
