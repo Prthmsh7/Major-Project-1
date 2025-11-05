@@ -9,15 +9,35 @@ const PantryManager = () => {
   const [editingId, setEditingId] = useState(null);
   const [editItem, setEditItem] = useState({ name: '', quantity: 1, unit: 'pcs' });
 
+  const [formErrors, setFormErrors] = useState({});
+
+  const validateForm = (item) => {
+    const errors = {};
+    if (!item.name.trim()) {
+      errors.name = 'Item name is required';
+    }
+    if (item.quantity !== '' && (isNaN(item.quantity) || item.quantity <= 0)) {
+      errors.quantity = 'Please enter a valid quantity';
+    }
+    return errors;
+  };
+
   const handleAddItem = (e) => {
     e.preventDefault();
-    if (!newItem.name.trim()) return;
+    const errors = validateForm(newItem);
+    
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      return;
+    }
+    
+    setFormErrors({});
     
     addPantryItem({
       id: Date.now().toString(),
-      ...newItem,
       name: newItem.name.trim(),
-      quantity: Number(newItem.quantity) || 1
+      quantity: newItem.quantity === '' ? '' : Number(newItem.quantity),
+      unit: newItem.unit || 'pcs'
     });
     
     setNewItem({ name: '', quantity: 1, unit: 'pcs' });
@@ -40,28 +60,50 @@ const PantryManager = () => {
       </div>
       
       <form onSubmit={handleAddItem} className="mb-6">
-        <div className="flex gap-2">
-          <input
-            type="text"
-            value={newItem.name}
-            onChange={(e) => setNewItem({...newItem, name: e.target.value})}
-            placeholder="Ingredient name"
-            className="w-64 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            required
-          />
-          <input
-            type={newItem.unit === 'pcs' ? 'number' : 'text'}
-            min={newItem.unit === 'pcs' ? '1' : '0.1'}
-            step={newItem.unit === 'pcs' ? '1' : '0.1'}
-            value={newItem.quantity}
-            onChange={(e) => setNewItem({...newItem, quantity: e.target.value})}
-            className="w-16 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
-            placeholder={newItem.unit === 'pcs' ? '1' : '0.00'}
-          />
+        <div className="flex flex-col sm:flex-row gap-2 mb-1">
+          <div className="flex-1">
+            <input
+              type="text"
+              value={newItem.name}
+              onChange={(e) => {
+                setNewItem({...newItem, name: e.target.value});
+                if (formErrors.name) setFormErrors({...formErrors, name: ''});
+              }}
+              placeholder="Ingredient name"
+              className={`w-full p-2 border rounded dark:bg-gray-700 dark:border-gray-600 ${formErrors.name ? 'border-red-500' : ''}`}
+            />
+            {formErrors.name && (
+              <p className="mt-1 text-sm text-red-500">{formErrors.name}</p>
+            )}
+          </div>
+          
+          <div className="relative">
+            <input
+              type="number"
+              min="0.1"
+              step={newItem.unit === 'pcs' ? '1' : '0.1'}
+              value={newItem.quantity}
+              onChange={(e) => {
+                setNewItem({...newItem, quantity: e.target.value});
+                if (formErrors.quantity) setFormErrors({...formErrors, quantity: ''});
+              }}
+              className={`w-24 p-2 border rounded dark:bg-gray-700 dark:border-gray-600 ${formErrors.quantity ? 'border-red-500' : ''}`}
+              placeholder={newItem.unit === 'pcs' ? '1' : '0.00'}
+            />
+            {formErrors.quantity && (
+              <p className="absolute mt-1 text-sm text-red-500 whitespace-nowrap">{formErrors.quantity}</p>
+            )}
+          </div>
+          
           <select
             value={newItem.unit}
-            onChange={(e) => setNewItem({...newItem, unit: e.target.value})}
-            className="w-24 p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
+            onChange={(e) => setNewItem({
+              ...newItem, 
+              unit: e.target.value,
+              // Reset quantity when changing unit types
+              quantity: e.target.value === 'pcs' ? '1' : ''
+            })}
+            className="p-2 border rounded dark:bg-gray-700 dark:border-gray-600"
           >
             <option value="pcs">pcs</option>
             <option value="g">g</option>
@@ -72,11 +114,13 @@ const PantryManager = () => {
             <option value="tbsp">tbsp</option>
             <option value="cup">cup</option>
           </select>
-          <button 
+          
+          <button
             type="submit"
-            className="p-2 bg-blue-500 text-white rounded hover:bg-blue-600"
+            className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors flex items-center justify-center"
+            aria-label="Add item"
           >
-            <FiPlus />
+            <FiPlus className="mr-1" /> Add
           </button>
         </div>
       </form>
