@@ -9,7 +9,17 @@ import {
   FiSave, 
   FiFolder, 
   FiTrash2,
-  FiPackage 
+  FiPackage,
+  FiEdit2,
+  FiClock,
+  FiCheckCircle,
+  FiShoppingBag,
+  FiDroplet,
+  FiCoffee,
+  FiMeh,
+  FiPlusCircle,
+  FiSquare,
+  FiCheckSquare
 } from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
 import { usePantry } from '@/context/PantryContext';
@@ -83,29 +93,54 @@ const ShoppingList = ({ recipes, onClose }) => {
       if (!recipe.ingredients) return;
       
       recipe.ingredients.forEach(ingredient => {
-        const trimmedIngredient = ingredient.trim();
-        if (!trimmedIngredient) return;
+        // Handle both string and object ingredients
+        const ingredientObj = typeof ingredient === 'string' 
+          ? { id: ingredient.trim().toLowerCase().replace(/\s+/g, '-'), name: ingredient.trim() }
+          : { 
+              id: ingredient.id || (ingredient.name || '').toLowerCase().replace(/\s+/g, '-'),
+              name: ingredient.name || '',
+              quantity: ingredient.quantity,
+              unit: ingredient.unit || 'pcs'
+            };
+            
+        if (!ingredientObj.name) return;
         
-        const category = categorizeIngredient(trimmedIngredient);
+        const category = categorizeIngredient(ingredientObj.name);
         if (!allIngredients[category]) {
           allIngredients[category] = [];
         }
         
         // Check if ingredient already exists in this category
-        if (!allIngredients[category].includes(trimmedIngredient)) {
-          allIngredients[category].push(trimmedIngredient);
+        const exists = allIngredients[category].some(item => 
+          item.name.toLowerCase() === ingredientObj.name.toLowerCase()
+        );
+        
+        if (!exists) {
+          allIngredients[category].push(ingredientObj);
         }
       });
     });
     
     // Process custom items
     customItems.forEach(item => {
-      const category = categorizeIngredient(item.text);
+      const ingredientObj = {
+        id: item.id || item.text.toLowerCase().replace(/\s+/g, '-'),
+        name: item.text,
+        quantity: item.quantity,
+        unit: item.unit || 'pcs'
+      };
+      
+      const category = categorizeIngredient(ingredientObj.name);
       if (!allIngredients[category]) {
         allIngredients[category] = [];
       }
-      if (!allIngredients[category].includes(item.text)) {
-        allIngredients[category].push(item.text);
+      
+      const exists = allIngredients[category].some(i => 
+        i.name.toLowerCase() === ingredientObj.name.toLowerCase()
+      );
+      
+      if (!exists) {
+        allIngredients[category].push(ingredientObj);
       }
     });
     
@@ -135,9 +170,16 @@ const ShoppingList = ({ recipes, onClose }) => {
 
   // Check if an item is in the pantry
   const isInPantry = (ingredient) => {
+    if (!ingredient) return false;
+    
+    // Handle both string and object ingredients
+    const ingredientName = typeof ingredient === 'string' 
+      ? ingredient.toLowerCase().trim() 
+      : (ingredient.name || '').toLowerCase().trim();
+      
     return pantryItems.some(item => 
-      item.name.toLowerCase() === ingredient.name.toLowerCase() &&
-      (item.quantity >= (ingredient.quantity || 1))
+      item.name.toLowerCase() === ingredientName &&
+      (ingredient.quantity ? item.quantity >= ingredient.quantity : true)
     );
   };
 
@@ -321,17 +363,42 @@ const ShoppingList = ({ recipes, onClose }) => {
                       >
                         <div className="flex-1 flex items-center justify-between">
                           <div className="flex items-center">
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleItem(ingredient);
+                              }}
+                              className="mr-2 text-gray-400 hover:text-blue-500 focus:outline-none"
+                              aria-label={checkedItems[ingredient.id] ? 'Uncheck item' : 'Check item'}
+                            >
+                              {checkedItems[ingredient.id] ? (
+                                <FiCheckSquare className="h-5 w-5 text-green-500" />
+                              ) : (
+                                <FiSquare className="h-5 w-5" />
+                              )}
+                            </button>
                             <span className={checkedItems[ingredient.id] ? 'line-through text-gray-500' : ''}>
                               {ingredient.name}
                               {ingredient.quantity && ` (${ingredient.quantity} ${ingredient.unit || 'pcs'})`}
                             </span>
                             {isInPantry(ingredient) && !checkedItems[ingredient.id] && (
-                              <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                              <span className="ml-2 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300 px-2 py-0.5 rounded-full">
                                 In Pantry
                               </span>
                             )}
                           </div>
-                          {checkedItems[ingredient.id] && <FiCheck className="h-4 w-4 text-green-500" />}
+                          {!checkedItems[ingredient.id] && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                toggleItem(ingredient);
+                              }}
+                              className="ml-2 p-1 text-gray-400 hover:text-green-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="Mark as done"
+                            >
+                              <FiCheck className="h-4 w-4" />
+                            </button>
+                          )}
                         </div>
                       </div>
                       {customItems.some(item => item.id === ingredient.id) && (

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FiUpload, FiImage, FiLoader } from 'react-icons/fi';
+import { FiUpload, FiImage, FiLoader, FiX, FiAlertCircle, FiCamera } from 'react-icons/fi';
 import { analyzeFoodImage } from '../../utils/geminiAPI';
 
 const ImageAnalysis = ({ onAnalysisComplete }) => {
@@ -82,23 +82,29 @@ const ImageAnalysis = ({ onAnalysisComplete }) => {
 
   return (
     <div className="mt-6 p-4 bg-gray-50 dark:bg-gray-800 rounded-lg">
-      <h3 className="text-lg font-medium mb-3">Add Items by Photo</h3>
+      <div className="flex items-center mb-3">
+        <FiCamera className="w-5 h-5 mr-2 text-blue-500" />
+        <h3 className="text-lg font-medium">Add Items by Photo</h3>
+      </div>
       
       <div
-        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors ${
-          isDragging ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-gray-300 dark:border-gray-600'
+        className={`border-2 border-dashed rounded-lg p-6 text-center transition-colors cursor-pointer ${
+          isDragging
+            ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
+            : 'border-gray-300 dark:border-gray-600 hover:border-blue-400 dark:hover:border-blue-500'
         }`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
+        aria-label="Upload food image"
       >
         <input
           type="file"
           ref={fileInputRef}
-          className="hidden"
-          accept="image/*"
           onChange={handleFileSelect}
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
         />
         
         {preview ? (
@@ -106,61 +112,43 @@ const ImageAnalysis = ({ onAnalysisComplete }) => {
             <img
               src={preview}
               alt="Preview"
-              className="max-h-48 mx-auto mb-4 rounded"
+              className="max-h-48 mx-auto mb-4 rounded-lg shadow-sm"
             />
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
                 setPreview('');
+                setError('');
               }}
-              className="absolute top-2 right-2 p-1 bg-red-500 text-white rounded-full hover:bg-red-600"
+              className="absolute top-2 right-2 p-1.5 bg-white/90 dark:bg-gray-800/90 text-red-500 rounded-full shadow hover:bg-red-50 dark:hover:bg-red-900/30 transition-colors"
+              aria-label="Remove image"
             >
-              ×
+              <FiX className="w-4 h-4" />
             </button>
           </div>
         ) : (
-          <div className="text-center">
-            <FiImage className="w-12 h-12 mx-auto text-gray-400 mb-3" />
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">
-              Drag & drop an image here, or click to select
-            </p>
-            <p className="text-xs text-gray-400 dark:text-gray-500">
-              Supported formats: JPG, PNG, WEBP
-            </p>
+          <div className="space-y-3 py-4">
+            <div className="mx-auto w-14 h-14 flex items-center justify-center bg-blue-100 dark:bg-blue-900/30 rounded-full">
+              <FiUpload className="w-6 h-6 text-blue-500" />
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-700 dark:text-gray-200">
+                Drag & drop a photo
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                or click to browse (JPG, PNG, WEBP)
+              </p>
+            </div>
           </div>
         )}
       </div>
-
-      {preview && (
-        <div className="mt-4 flex justify-end">
-          <button
-            type="button"
-            onClick={handleAnalyze}
-            disabled={isLoading}
-            className={`px-4 py-2 rounded-md flex items-center ${
-              isLoading
-                ? 'bg-blue-400 cursor-not-allowed'
-                : 'bg-blue-500 hover:bg-blue-600'
-            } text-white`}
-          >
-            {isLoading ? (
-              <>
-                <FiLoader className="animate-spin mr-2" />
-                Analyzing...
-              </>
-            ) : (
-              <>
-                <FiUpload className="mr-2" />
-                Analyze Image
-              </>
-            )}
-          </button>
-        </div>
-      )}
-
+      
       {error && (
-        <div className="mt-3 text-red-500 text-sm">{error}</div>
+        <div className="mt-3 p-3 bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300 text-sm rounded-md flex items-start">
+          <FiAlertCircle className="flex-shrink-0 mt-0.5 mr-2 w-4 h-4" />
+          <span>{error}</span>
+        </div>
       )}
     </div>
   );
