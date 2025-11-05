@@ -2,7 +2,7 @@
 
 A luxurious, minimalist dashboard web application with a premium dark theme and matte finish. Built with React, Node.js, and SQLite for local data storage.
 
-## ✨ Features
+## Features
 
 - **Premium Dark Theme**: Sophisticated dark color palette with matte finish
 - **Minimalist Design**: Clean, modern interface with ample whitespace
@@ -12,7 +12,7 @@ A luxurious, minimalist dashboard web application with a premium dark theme and 
 - **Local Storage**: SQLite3 database for user data and authentication
 - **Modern Technology**: Built with React 18, Vite, Node.js, and Express
 
-## 🚀 Quick Start
+## Quick Start
 
 ### Prerequisites
 
@@ -61,7 +61,7 @@ A luxurious, minimalist dashboard web application with a premium dark theme and 
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 premium-dashboard/
@@ -79,7 +79,7 @@ premium-dashboard/
 └── package.json           # Root package.json
 ```
 
-## 🎨 Design Philosophy
+## Design Philosophy
 
 ### Color Palette
 - **Primary**: Deep blacks and charcoals (#0a0a0a, #111111, #1a1a1a)
@@ -97,7 +97,7 @@ premium-dashboard/
 - **Hover Effects**: Smooth transitions and scale effects
 - **Minimalist Layout**: Clean, uncluttered interface
 
-## 🔐 Authentication
+## Authentication
 
 The application uses JWT (JSON Web Tokens) for authentication:
 
@@ -107,7 +107,7 @@ The application uses JWT (JSON Web Tokens) for authentication:
 - **Protected Routes**: Dashboard accessible only to authenticated users
 - **Password Hashing**: bcryptjs for secure password storage
 
-## 📱 Dashboard Pages
+## Dashboard Pages
 
 ### 1. Settings
 - User account information
@@ -138,7 +138,7 @@ The application uses JWT (JSON Web Tokens) for authentication:
 - Meal organization
 - Progress visualization
 
-## 🛠️ Technology Stack
+## Technology Stack
 
 ### Frontend
 - **React 18**: Modern React with hooks
@@ -155,7 +155,7 @@ The application uses JWT (JSON Web Tokens) for authentication:
 - **bcryptjs**: Password hashing
 - **CORS**: Cross-origin resource sharing
 
-## 🔧 API Endpoints
+## API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - User registration
@@ -173,7 +173,7 @@ CREATE TABLE users (
 );
 ```
 
-## 🚀 Deployment
+## Deployment
 
 ### Development
 ```bash
@@ -191,7 +191,7 @@ cd ../server
 npm start
 ```
 
-## 🔮 Future Enhancements
+## Future Enhancements
 
 ### Phase 2 (Planned)
 - [ ] MongoDB migration
@@ -211,7 +211,7 @@ npm start
 - [ ] Third-party integrations
 - [ ] API for external developers
 
-## 🤝 Contributing
+## Contributing
 
 1. Fork the repository
 2. Create a feature branch (`git checkout -b feature/amazing-feature`)
@@ -219,11 +219,11 @@ npm start
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Inter Font**: Google Fonts
 - **React Team**: For the amazing framework
