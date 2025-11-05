@@ -1,12 +1,13 @@
-import { BrowserRouter as Router, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
-import { AuthProvider, useAuth } from '@/contexts/AuthContext';
-import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
+import { Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
+import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 
 // Pages
 import AuthPage from '@/components/AuthPage';
 import DashboardPage from '@/pages/DashboardPage';
 import NutritionPage from '@/pages/NutritionPage';
 import MealPlanningPage from '@/pages/MealPlanningPage';
+import PantryPage from '@/pages/PantryPage';
 
 // Layouts
 import DashboardLayout from '@/components/dashboard/DashboardLayout';
@@ -81,6 +82,7 @@ const AppRoutes = () => {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/meal-planning" element={<MealPlanningPage />} />
           <Route path="/nutrition" element={<NutritionPage />} />
+          <Route path="/pantry" element={<PantryPage />} />
         </Route>
       </Route>
 
@@ -94,32 +96,16 @@ const AppRoutes = () => {
  * App Content Component
  * Wraps the app with theme and auth providers
  */
-const AppContent = () => {
+const App = () => {
   const { theme } = useTheme();
 
   return (
-    <div className={`min-h-screen ${theme}`}>
+    <div className={`min-h-screen transition-colors duration-200 ${theme === 'dark' ? 'dark bg-gray-900 text-white' : 'bg-gray-50 text-gray-900'}`}>
       <AuthCheck>
         <AppRoutes />
       </AuthCheck>
     </div>
   );
 };
-
-/**
- * Main App Component
- * Wraps the app with required providers
- */
-function App() {
-  return (
-    <Router>
-      <AuthProvider>
-        <ThemeProvider>
-          <AppContent />
-        </ThemeProvider>
-      </AuthProvider>
-    </Router>
-  );
-}
 
 export default App;

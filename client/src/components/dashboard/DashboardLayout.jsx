@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { FiHome, FiPieChart, FiPlusCircle, FiLogOut, FiCalendar } from 'react-icons/fi';
+import { FiHome, FiPieChart, FiPlusCircle, FiLogOut, FiCalendar, FiPackage } from 'react-icons/fi';
 import { Link, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -16,6 +16,7 @@ const DashboardLayout = () => {
   const navigation = [
     { name: 'Dashboard', icon: FiHome, href: '/dashboard' },
     { name: 'Meal Planning', icon: FiCalendar, href: '/meal-planning' },
+    { name: 'Pantry', icon: FiPackage, href: '/pantry' },
     { name: 'Nutrition', icon: FiPieChart, href: '/nutrition' },
     { name: 'Add Food', icon: FiPlusCircle, href: '/add-food' },
   ];

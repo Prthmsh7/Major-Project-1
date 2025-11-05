@@ -1,6 +1,18 @@
 import { useState, useMemo, useEffect } from 'react';
-import { FiShoppingCart, FiCheck, FiPrinter, FiX, FiPlus, FiMinus, FiSave, FiFolder, FiTrash2 } from 'react-icons/fi';
+import { 
+  FiShoppingCart, 
+  FiCheck, 
+  FiPrinter, 
+  FiX, 
+  FiPlus, 
+  FiMinus, 
+  FiSave, 
+  FiFolder, 
+  FiTrash2,
+  FiPackage 
+} from 'react-icons/fi';
 import { motion, AnimatePresence } from 'framer-motion';
+import { usePantry } from '@/context/PantryContext';
 
 // Sample ingredient categories for organization
 const INGREDIENT_CATEGORIES = {
@@ -34,14 +46,33 @@ const categorizeIngredient = (ingredient) => {
 };
 
 const ShoppingList = ({ recipes, onClose }) => {
+  const { pantryItems, addPantryItem } = usePantry();
   const [checkedItems, setCheckedItems] = useState({});
   const [customItems, setCustomItems] = useState([]);
-  const [newItem, setNewItem] = useState('');
+  const [newItem, setNewItem] = useState({ name: '', quantity: 1, unit: 'pcs' });
   const [isAddingItem, setIsAddingItem] = useState(false);
   const [savedLists, setSavedLists] = useState([]);
   const [showSaveModal, setShowSaveModal] = useState(false);
   const [listName, setListName] = useState('');
   const [showSavedLists, setShowSavedLists] = useState(false);
+  const [showPantryAdd, setShowPantryAdd] = useState(false);
+  const [selectedItem, setSelectedItem] = useState(null);
+
+  // Add item to pantry
+  const handleAddToPantry = (ingredient) => {
+    addPantryItem({
+      id: Date.now().toString(),
+      name: ingredient.name,
+      quantity: ingredient.quantity || 1,
+      unit: ingredient.unit || 'pcs'
+    });
+    
+    // Update checked items to show it's been added
+    setCheckedItems(prev => ({
+      ...prev,
+      [ingredient.id]: true
+    }));
+  };
 
   // Process all ingredients from recipes
   const ingredientsByCategory = useMemo(() => {
@@ -84,19 +115,30 @@ const ShoppingList = ({ recipes, onClose }) => {
   const toggleItem = (ingredient) => {
     setCheckedItems(prev => ({
       ...prev,
-      [ingredient]: !prev[ingredient]
+      [ingredient.id]: !prev[ingredient.id]
     }));
   };
 
-  const addCustomItem = () => {
-    if (newItem.trim()) {
-      setCustomItems(prev => [
-        ...prev, 
-        { id: Date.now(), text: newItem.trim(), isCustom: true }
-      ]);
-      setNewItem('');
+  const handleAddCustomItem = () => {
+    if (newItem.name.trim()) {
+      setCustomItems([...customItems, { 
+        id: Date.now().toString(), 
+        name: newItem.name, 
+        quantity: newItem.quantity || 1,
+        unit: newItem.unit || 'pcs',
+        checked: false 
+      }]);
+      setNewItem({ name: '', quantity: 1, unit: 'pcs' });
       setIsAddingItem(false);
     }
+  };
+
+  // Check if an item is in the pantry
+  const isInPantry = (ingredient) => {
+    return pantryItems.some(item => 
+      item.name.toLowerCase() === ingredient.name.toLowerCase() &&
+      (item.quantity >= (ingredient.quantity || 1))
+    );
   };
 
   const removeCustomItem = (id) => {
@@ -126,7 +168,7 @@ const ShoppingList = ({ recipes, onClose }) => {
       date: new Date().toLocaleDateString(),
       items: {
         ...ingredientsByCategory,
-        custom: customItems.filter(item => item.isCustom).map(item => item.text)
+        custom: customItems.filter(item => item.checked).map(item => item.name)
       },
       checkedItems: { ...checkedItems }
     };
@@ -144,8 +186,10 @@ const ShoppingList = ({ recipes, onClose }) => {
       ...customItems,
       ...(list.items.custom || []).map(text => ({
         id: Date.now() + Math.random(),
-        text,
-        isCustom: true
+        name: text,
+        quantity: 1,
+        unit: 'pcs',
+        checked: false
       }))
     ];
     
@@ -185,7 +229,9 @@ const ShoppingList = ({ recipes, onClose }) => {
               className="p-2 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
               title="Print list"
             >
-              <FiPrinter className="h-5 w-5" />
+              <div className="flex items-center gap-2">
+                <FiPrinter className="h-5 w-5" />
+              </div>
             </button>
             <button
               onClick={onClose}
@@ -197,6 +243,54 @@ const ShoppingList = ({ recipes, onClose }) => {
         </div>
         
         <div className="flex-1 overflow-y-auto p-4 space-y-6">
+          <div className="flex justify-between items-center">
+            <h2 className="text-xl font-bold">Shopping List</h2>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => setShowSavedLists(!showSavedLists)}
+                className="p-1 text-blue-500 hover:text-blue-700"
+                title="Saved Lists"
+              >
+                <FiFolder />
+              </button>
+              <button 
+                onClick={() => setShowPantryAdd(!showPantryAdd)}
+                className="p-1 text-green-500 hover:text-green-700"
+                title="Show/Hide Pantry"
+              >
+                <FiPackage />
+              </button>
+            </div>
+          </div>
+          {showPantryAdd && (
+            <div className="mt-4 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <h3 className="font-medium mb-2">Add to Pantry</h3>
+              {selectedItem ? (
+                <div className="flex items-center gap-2">
+                  <span>{selectedItem.name} - {selectedItem.quantity} {selectedItem.unit}</span>
+                  <button 
+                    onClick={() => {
+                      handleAddToPantry(selectedItem);
+                      setSelectedItem(null);
+                    }}
+                    className="px-2 py-1 bg-green-500 text-white rounded hover:bg-green-600 text-sm"
+                  >
+                    Add to Pantry
+                  </button>
+                  <button 
+                    onClick={() => setSelectedItem(null)}
+                    className="p-1 text-gray-500 hover:text-gray-700"
+                  >
+                    <FiX />
+                  </button>
+                </div>
+              ) : (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Select an item below to add it to your pantry
+                </p>
+              )}
+            </div>
+          )}
           {Object.entries(INGREDIENT_CATEGORIES).map(([key, category]) => {
             const ingredients = ingredientsByCategory[key] || [];
             if (ingredients.length === 0) return null;
@@ -214,24 +308,33 @@ const ShoppingList = ({ recipes, onClose }) => {
                       animate={{ opacity: 1, x: 0 }}
                       className="flex items-center group"
                     >
-                      <button
-                        onClick={() => toggleItem(ingredient)}
-                        className={`flex-1 flex items-center p-2 rounded-lg transition-colors ${
-                          checkedItems[ingredient] 
-                            ? 'bg-green-50 dark:bg-green-900/20 text-gray-500 line-through' 
-                            : 'hover:bg-gray-50 dark:hover:bg-gray-700/50'
+                      <div
+                        key={`${category}-${idx}`}
+                        className={`flex items-center p-2 rounded cursor-pointer ${
+                          checkedItems[ingredient.id] 
+                            ? 'bg-green-50 dark:bg-green-900/20' 
+                            : isInPantry(ingredient) 
+                              ? 'bg-blue-50 dark:bg-blue-900/20' 
+                              : 'bg-gray-50 dark:bg-gray-700 hover:bg-gray-100 dark:hover:bg-gray-600'
                         }`}
+                        onClick={() => !checkedItems[ingredient.id] && setSelectedItem(ingredient)}
                       >
-                        <div className={`w-5 h-5 rounded-full border flex-shrink-0 flex items-center justify-center mr-3 ${
-                          checkedItems[ingredient] 
-                            ? 'bg-green-500 border-green-500 text-white' 
-                            : 'border-gray-300 dark:border-gray-600'
-                        }`}>
-                          {checkedItems[ingredient] && <FiCheck className="h-3 w-3" />}
+                        <div className="flex-1 flex items-center justify-between">
+                          <div className="flex items-center">
+                            <span className={checkedItems[ingredient.id] ? 'line-through text-gray-500' : ''}>
+                              {ingredient.name}
+                              {ingredient.quantity && ` (${ingredient.quantity} ${ingredient.unit || 'pcs'})`}
+                            </span>
+                            {isInPantry(ingredient) && !checkedItems[ingredient.id] && (
+                              <span className="ml-2 text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
+                                In Pantry
+                              </span>
+                            )}
+                          </div>
+                          {checkedItems[ingredient.id] && <FiCheck className="h-4 w-4 text-green-500" />}
                         </div>
-                        <span className="text-left">{ingredient}</span>
-                      </button>
-                      {customItems.some(item => item.text === ingredient) && (
+                      </div>
+                      {customItems.some(item => item.id === ingredient.id) && (
                         <button
                           onClick={() => removeCustomItem(customItems.find(item => item.text === ingredient)?.id)}
                           className="ml-2 p-1 text-gray-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"

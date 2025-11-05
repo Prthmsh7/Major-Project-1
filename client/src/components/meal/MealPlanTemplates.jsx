@@ -1,6 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FiSave, FiFolderPlus, FiX, FiTrash2, FiCheck } from 'react-icons/fi';
+import { FiSave, FiFolderPlus, FiX, FiTrash2, FiCheck, FiEdit, FiSearch } from 'react-icons/fi';
+
+const TEMPLATE_CATEGORIES = ['General', 'Keto', 'Vegetarian', 'Vegan', 'Paleo', 'Meal Prep', 'High Protein', 'Low Carb'];
 
 const MealPlanTemplates = ({ 
   isOpen, 
@@ -12,12 +14,29 @@ const MealPlanTemplates = ({
   const [templateName, setTemplateName] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [selectedTemplate, setSelectedTemplate] = useState(null);
+  const [templateCategory, setTemplateCategory] = useState('General');
+  const [templateTags, setTemplateTags] = useState('');
+  const [search, setSearch] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('All');
+  const [editingId, setEditingId] = useState(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingCategory, setEditingCategory] = useState('General');
 
   // Load templates from localStorage on mount
   useEffect(() => {
     const savedTemplates = JSON.parse(localStorage.getItem('mealPlanTemplates') || '[]');
     setTemplates(savedTemplates);
   }, []);
+
+  const filteredTemplates = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return templates.filter(t => {
+      const nameMatch = !q || t.name.toLowerCase().includes(q);
+      const tagsMatch = !q || (t.tags || []).some(tag => tag.toLowerCase().includes(q));
+      const categoryMatch = categoryFilter === 'All' || (t.category || 'General') === categoryFilter;
+      return (nameMatch || tagsMatch) && categoryMatch;
+    });
+  }, [templates, search, categoryFilter]);
 
   const saveAsTemplate = () => {
     if (!templateName.trim()) return;
@@ -26,6 +45,11 @@ const MealPlanTemplates = ({
       id: Date.now(),
       name: templateName.trim(),
       date: new Date().toLocaleDateString(),
+      category: templateCategory || 'General',
+      tags: templateTags
+        .split(',')
+        .map(t => t.trim())
+        .filter(Boolean),
       recipes: { ...selectedRecipes }
     };
 
@@ -33,6 +57,8 @@ const MealPlanTemplates = ({
     localStorage.setItem('mealPlanTemplates', JSON.stringify(updatedTemplates));
     setTemplates(updatedTemplates);
     setTemplateName('');
+    setTemplateCategory('General');
+    setTemplateTags('');
     setShowSaveForm(false);
   };
 
@@ -44,6 +70,31 @@ const MealPlanTemplates = ({
     if (selectedTemplate?.id === id) {
       setSelectedTemplate(null);
     }
+  };
+
+  const startEdit = (template, e) => {
+    if (e) e.stopPropagation();
+    setEditingId(template.id);
+    setEditingName(template.name);
+    setEditingCategory(template.category || 'General');
+  };
+
+  const saveEdit = (e) => {
+    if (e) e.stopPropagation();
+    if (!editingId) return;
+    const name = editingName.trim();
+    if (!name) return;
+    const updatedTemplates = templates.map(t =>
+      t.id === editingId ? { ...t, name, category: editingCategory || 'General' } : t
+    );
+    localStorage.setItem('mealPlanTemplates', JSON.stringify(updatedTemplates));
+    setTemplates(updatedTemplates);
+    setEditingId(null);
+  };
+
+  const cancelEdit = (e) => {
+    if (e) e.stopPropagation();
+    setEditingId(null);
   };
 
   const applyTemplate = () => {
@@ -84,10 +135,38 @@ const MealPlanTemplates = ({
               </div>
             </div>
 
+            {/* Search & Filters */}
+            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <div className="relative">
+                  <FiSearch className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+                  <input
+                    type="text"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search by name or tag"
+                    className="w-full pl-9 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <select
+                    value={categoryFilter}
+                    onChange={(e) => setCategoryFilter(e.target.value)}
+                    className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                  >
+                    <option value="All">All Categories</option>
+                    {TEMPLATE_CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+
             {/* Save Template Form */}
             {showSaveForm && (
               <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-                <div className="flex items-center space-x-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   <input
                     type="text"
                     value={templateName}
@@ -97,17 +176,41 @@ const MealPlanTemplates = ({
                     onKeyDown={(e) => e.key === 'Enter' && saveAsTemplate()}
                     autoFocus
                   />
-                  <button
-                    onClick={saveAsTemplate}
-                    disabled={!templateName.trim()}
-                    className={`px-3 py-2 text-sm font-medium rounded-md ${
-                      templateName.trim() 
-                        ? 'bg-blue-600 text-white hover:bg-blue-700' 
-                        : 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700'
-                    }`}
+                  <select
+                    value={templateCategory}
+                    onChange={(e) => setTemplateCategory(e.target.value)}
+                    className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
                   >
-                    Save
-                  </button>
+                    {TEMPLATE_CATEGORIES.map(c => (
+                      <option key={c} value={c}>{c}</option>
+                    ))}
+                  </select>
+                  <input
+                    type="text"
+                    value={templateTags}
+                    onChange={(e) => setTemplateTags(e.target.value)}
+                    placeholder="Tags (comma separated)"
+                    className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white sm:col-span-2"
+                  />
+                  <div className="flex items-center justify-end sm:col-span-2 space-x-2">
+                    <button
+                      onClick={() => setShowSaveForm(false)}
+                      className="px-3 py-2 text-sm font-medium rounded-md bg-gray-200 text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={saveAsTemplate}
+                      disabled={!templateName.trim()}
+                      className={`px-3 py-2 text-sm font-medium rounded-md ${
+                        templateName.trim() 
+                          ? 'bg-blue-600 text-white hover:bg-blue-700' 
+                          : 'bg-gray-200 text-gray-400 cursor-not-allowed dark:bg-gray-700'
+                      }`}
+                    >
+                      Save
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -122,7 +225,7 @@ const MealPlanTemplates = ({
                 </div>
               ) : (
                 <div className="grid gap-3 grid-cols-1 sm:grid-cols-2">
-                  {templates.map((template) => (
+                  {filteredTemplates.map((template) => (
                     <div 
                       key={template.id}
                       onClick={() => setSelectedTemplate(template)}
@@ -133,24 +236,81 @@ const MealPlanTemplates = ({
                       }`}
                     >
                       <div className="flex justify-between items-start">
-                        <div>
-                          <h3 className="font-medium text-gray-900 dark:text-white">
-                            {template.name}
-                          </h3>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Created: {template.date}
-                          </p>
-                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-                            {Object.keys(template.recipes).length} meals
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          {editingId === template.id ? (
+                            <div className="space-y-2">
+                              <div className="flex items-center space-x-2">
+                                <input
+                                  type="text"
+                                  value={editingName}
+                                  onChange={(e) => setEditingName(e.target.value)}
+                                  className="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                />
+                                <select
+                                  value={editingCategory}
+                                  onChange={(e) => setEditingCategory(e.target.value)}
+                                  className="px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                                >
+                                  {TEMPLATE_CATEGORIES.map(c => (
+                                    <option key={c} value={c}>{c}</option>
+                                  ))}
+                                </select>
+                                <button
+                                  onClick={saveEdit}
+                                  className="p-2 text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                                  title="Save changes"
+                                >
+                                  <FiCheck className="h-4 w-4" />
+                                </button>
+                                <button
+                                  onClick={cancelEdit}
+                                  className="p-2 text-gray-600 bg-gray-200 rounded-md hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200"
+                                  title="Cancel"
+                                >
+                                  <FiX className="h-4 w-4" />
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <>
+                              <h3 className="font-medium text-gray-900 dark:text-white">
+                                {template.name}
+                              </h3>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Created: {template.date}
+                              </p>
+                              <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
+                                {Object.keys(template.recipes).length} meals
+                              </p>
+                              <div className="flex flex-wrap gap-1 mt-2">
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200">
+                                  {template.category || 'General'}
+                                </span>
+                                {(template.tags || []).map((tag) => (
+                                  <span key={tag} className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300">
+                                    #{tag}
+                                  </span>
+                                ))}
+                              </div>
+                            </>
+                          )}
                         </div>
-                        <button
-                          onClick={(e) => deleteTemplate(template.id, e)}
-                          className="p-1 text-gray-400 hover:text-red-500"
-                          title="Delete template"
-                        >
-                          <FiTrash2 className="h-4 w-4" />
-                        </button>
+                        <div className="flex items-center space-x-2 pl-2">
+                          <button
+                            onClick={(e) => startEdit(template, e)}
+                            className="p-1 text-gray-400 hover:text-gray-600 dark:text-gray-400 dark:hover:text-gray-200"
+                            title="Rename / Edit"
+                          >
+                            <FiEdit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={(e) => deleteTemplate(template.id, e)}
+                            className="p-1 text-gray-400 hover:text-red-500"
+                            title="Delete template"
+                          >
+                            <FiTrash2 className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}

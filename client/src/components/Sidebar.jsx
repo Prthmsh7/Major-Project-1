@@ -1,7 +1,7 @@
 import { Link, useLocation, NavLink } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
-import { FiSettings, FiHelpCircle, FiPackage, FiActivity, FiLogOut } from 'react-icons/fi';
+import { FiSettings, FiHelpCircle, FiPackage, FiActivity, FiLogOut, FiCalendar } from 'react-icons/fi';
 import { RiRobot2Line } from 'react-icons/ri';
 
 const Sidebar = ({ isOpen, onClose }) => {
@@ -11,8 +11,9 @@ const Sidebar = ({ isOpen, onClose }) => {
 
   const navigation = [
     { name: 'Dashboard', href: '/dashboard', icon: <FiActivity className="w-5 h-5" /> },
-    { name: 'Pantry', href: '/dashboard/pantry', icon: <FiPackage className="w-5 h-5" /> },
-    { name: 'Nutrition', href: '/dashboard/nutrition', icon: <FiActivity className="w-5 h-5" /> },
+    { name: 'Meal Planning', href: '/meal-planning', icon: <FiCalendar className="w-5 h-5" /> },
+    { name: 'Pantry', href: '/pantry', icon: <FiPackage className="w-5 h-5" /> },
+    { name: 'Nutrition', href: '/nutrition', icon: <FiActivity className="w-5 h-5" /> },
     { name: 'Assistant', href: '/dashboard/assistant', icon: <RiRobot2Line className="w-5 h-5" /> },
     { name: 'Settings', href: '/dashboard/settings', icon: <FiSettings className="w-5 h-5" /> },
     { name: 'Help', href: '/dashboard/help', icon: <FiHelpCircle className="w-5 h-5" /> },

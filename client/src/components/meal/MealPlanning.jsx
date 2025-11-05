@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { format } from 'date-fns';
 import { 
   FiCalendar, 
   FiPlus, 
@@ -19,7 +20,8 @@ import {
   FiList,
   FiPieChart,
   FiTrendingUp,
-  FiShoppingBag
+  FiShoppingBag,
+  FiZap
 } from 'react-icons/fi';
 import MealPlanCalendar from './MealPlanCalendar';
 import RecipeSearch from './RecipeSearch';
@@ -27,6 +29,7 @@ import ShoppingList from './ShoppingList';
 import MealPlanTemplates from './MealPlanTemplates';
 import MealPlanAnalytics from './MealPlanAnalytics';
 import GroceryList from './GroceryList';
+import { generateMealPlan } from '../../utils/geminiAPI';
 
 const days = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const mealTypes = ['Breakfast', 'Lunch', 'Dinner', 'Snacks'];
@@ -38,6 +41,7 @@ const sampleRecipes = [
 ];
 
 const MealPlanning = () => {
+  const [searchQuery, setSearchQuery] = useState('');
   const [selectedDay, setSelectedDay] = useState(days[0]);
   const [selectedMealType, setSelectedMealType] = useState(mealTypes[0]);
   const [showRecipeSearch, setShowRecipeSearch] = useState(false);
@@ -54,11 +58,13 @@ const MealPlanning = () => {
   const [activeTab, setActiveTab] = useState('meals'); // 'meals' or 'analytics'
   const [showGroceryList, setShowGroceryList] = useState(false);
   const shareLinkRef = useRef(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeFilters, setActiveFilters] = useState({
-    mealType: [],
-    dietary: []
+  const [showAIGenerate, setShowAIGenerate] = useState(false);
+  const [aiPreferences, setAiPreferences] = useState({
+    preferences: [],
+    dietaryRestrictions: [],
+    customPrompt: ''
   });
+  const [isGenerating, setIsGenerating] = useState(false);
 
   const handleAddRecipe = useCallback((recipe) => {
     const key = `${selectedDay}-${selectedMealType}`;
@@ -161,26 +167,84 @@ const MealPlanning = () => {
     }
   };
 
-  // Share via email
-  const shareViaEmail = async () => {
-    if (!email) return;
-    
-    setIsSharing(true);
+  // Handle AI-generated meal plan
+  const handleAIGenerate = async () => {
     try {
-      // In a real app, you would call your backend API to send the email
-      console.log('Sharing meal plan with:', email);
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      setShareSuccess(true);
-      setEmail('');
-      setTimeout(() => {
-        setShareSuccess(false);
-        setShowShareModal(false);
-      }, 2000);
+      console.log('Starting AI meal plan generation...');
+      const preferences = aiPreferences.preferences.length > 0 ? aiPreferences.preferences : ['healthy', 'balanced'];
+      const restrictions = aiPreferences.dietaryRestrictions.length > 0 ? aiPreferences.dietaryRestrictions : [];
+      
+      console.log('Preferences:', preferences);
+      console.log('Restrictions:', restrictions);
+      
+      setIsGenerating(true);
+      
+      try {
+        console.log('Calling generateMealPlan API...');
+        const plan = await generateMealPlan(
+          preferences,
+          restrictions,
+          mealTypes,
+          1 // Start with 1 day for testing
+        );
+        
+        console.log('API Response:', plan);
+
+        // Process the generated plan and update the UI
+        if (plan && plan.days) {
+          console.log('Processing plan with days:', plan.days.length);
+          const newSelectedRecipes = { ...selectedRecipes };
+          
+          plan.days.forEach(day => {
+            console.log(`Processing day ${day.day} with ${day.meals?.length || 0} meals`);
+            if (day.meals && Array.isArray(day.meals)) {
+              day.meals.forEach(meal => {
+                if (!meal || !meal.type) return;
+                
+                const dayName = days[day.day - 1];
+                if (!dayName) {
+                  console.error(`Invalid day index: ${day.day - 1}`);
+                  return;
+                }
+                
+                const key = `${dayName}-${meal.type}`;
+                console.log(`Adding meal to ${key}:`, meal.recipe);
+                
+                if (!newSelectedRecipes[key]) {
+                  newSelectedRecipes[key] = [];
+                }
+                
+                newSelectedRecipes[key].push({
+                  id: `${meal.recipe ? meal.recipe.replace(/\s+/g, '-').toLowerCase() : 'recipe'}-${Date.now()}`,
+                  name: meal.recipe || 'Unnamed Recipe',
+                  ingredients: Array.isArray(meal.ingredients) ? meal.ingredients : [],
+                  instructions: meal.instructions || 'No instructions provided',
+                  calories: meal.calories || 300,
+                  protein: meal.protein || 20,
+                  carbs: meal.carbs || 40,
+                  fat: meal.fat || 10,
+                  prepTime: meal.prepTime || 20
+                });
+              });
+            }
+          });
+          
+          console.log('Updating recipes with new plan');
+          setSelectedRecipes(newSelectedRecipes);
+          setShowAIGenerate(false);
+        } else {
+          console.error('Invalid plan format received:', plan);
+          throw new Error('No valid meal plan was generated. Please try again.');
+        }
+      } catch (apiError) {
+        console.error('API Error:', apiError);
+        throw apiError; // Re-throw to be caught by the outer catch
+      }
     } catch (error) {
-      console.error('Error sharing meal plan:', error);
+      console.error('Error generating meal plan:', error);
+      alert(`Failed to generate meal plan: ${error.message}`);
     } finally {
-      setIsSharing(false);
+      setIsGenerating(false);
     }
   };
 
@@ -223,13 +287,13 @@ const MealPlanning = () => {
             >
               <FiShoppingCart className="mr-2" /> Shopping List
             </button>
-            <button
-              onClick={() => setShowGroceryList(true)}
-              className="flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-lg hover:bg-green-700 whitespace-nowrap"
-              title="Generate grocery list"
+            {/* <button
+              onClick={() => alert('AI feature is not available. Please configure the Gemini API key.')}
+              className="flex items-center px-3 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 whitespace-nowrap"
+              title="AI meal plan generation (requires API key)"
             >
-              <FiShoppingBag className="mr-2" /> Grocery List
-            </button>
+              <FiZap className="mr-2" /> AI Generate
+            </button> */}
             <button
               onClick={() => setShowTemplates(true)}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 whitespace-nowrap"
@@ -245,12 +309,20 @@ const MealPlanning = () => {
             >
               <FiShare2 className="mr-2" /> Share
             </button>
-            <button 
-              onClick={() => setShowRecipeSearch(true)}
-              className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 whitespace-nowrap"
-            >
-              <FiPlus className="mr-2" /> Add Recipe
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowRecipeSearch(true)}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 whitespace-nowrap"
+              >
+                <FiPlus className="mr-2" /> Add Recipe
+              </button>
+              <button
+                onClick={() => setShowAIGenerate(true)}
+                className="flex items-center px-4 py-2 text-sm font-medium text-white bg-purple-600 rounded-lg hover:bg-purple-700 whitespace-nowrap"
+              >
+                <FiZap className="mr-2" /> Generate with AI
+              </button>
+            </div>
             <button
               onClick={() => setActiveTab(activeTab === 'meals' ? 'analytics' : 'meals')}
               className="flex items-center px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600 whitespace-nowrap"
@@ -354,9 +426,9 @@ const MealPlanning = () => {
               </div>
               
               <div className="space-y-3 flex-1">
-              {selectedRecipes[`${selectedDay}-${mealType}`]?.filter(recipe => 
+              {selectedRecipes[`${selectedDay}-${mealType}`]?.filter(recipe =>
                 recipe.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                (recipe.ingredients && recipe.ingredients.some(ing => 
+                (recipe.ingredients && recipe.ingredients.some(ing =>
                   ing.toLowerCase().includes(searchQuery.toLowerCase())
                 ))
               ).map((recipe) => (
@@ -452,173 +524,302 @@ const MealPlanning = () => {
       </div>
       )}
 
-      {/* Recipe Search Modal */}
+      {/* All Modals */}
       <AnimatePresence>
         {showRecipeSearch && (
-          <RecipeSearch 
-            onSelectRecipe={handleAddRecipe}
-            onClose={() => setShowRecipeSearch(false)}
-          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <RecipeSearch
+              onSelectRecipe={handleAddRecipe}
+              onClose={() => setShowRecipeSearch(false)}
+            />
+          </motion.div>
         )}
         {showShoppingList && (
-          <ShoppingList 
-            recipes={getAllRecipes}
-            onClose={() => setShowShoppingList(false)}
-          />
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <ShoppingList
+              recipes={getAllRecipes}
+              onClose={() => setShowShoppingList(false)}
+            />
+          </motion.div>
         )}
-        
-        {/* Share Modal */}
-        <AnimatePresence>
-          {showShareModal && (
-            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-              <motion.div 
-                className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden"
-                initial={{ scale: 0.95, y: 20, opacity: 0 }}
-                animate={{ scale: 1, y: 0, opacity: 1 }}
-                exit={{ scale: 0.95, y: 20, opacity: 0 }}
-              >
-                <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
-                  <h3 className="text-lg font-medium text-gray-900 dark:text-white">Share Meal Plan</h3>
-                  <button
-                    onClick={() => {
-                      setShowShareModal(false);
-                      setShareSuccess(false);
-                    }}
-                    className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
-                  >
-                    <FiX className="h-5 w-5" />
-                  </button>
-                </div>
-                
-                {shareSuccess ? (
-                  <div className="p-6 text-center">
-                    <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
-                      <FiCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Shared successfully!</h3>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">
-                      Your meal plan has been {shareMethod === 'email' ? 'shared via email' : 'link copied to clipboard'}.
-                    </p>
-                  </div>
-                ) : (
-                  <>
-                    <div className="p-6">
-                      <div className="flex rounded-md shadow-sm mb-6">
-                        <button
-                          onClick={() => setShareMethod('link')}
-                          className={`flex-1 py-2 px-4 text-sm font-medium rounded-l-md ${
-                            shareMethod === 'link' 
-                              ? 'bg-blue-600 text-white' 
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                        >
-                          <FiLink className="inline mr-2" /> Copy Link
-                        </button>
-                        <button
-                          onClick={() => setShareMethod('email')}
-                          className={`flex-1 py-2 px-4 text-sm font-medium rounded-r-md ${
-                            shareMethod === 'email' 
-                              ? 'bg-blue-600 text-white' 
-                              : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
-                          }`}
-                        >
-                          <FiMail className="inline mr-2" /> Email
-                        </button>
-                      </div>
 
-                      {shareMethod === 'link' ? (
-                        <div>
-                          <label htmlFor="share-link" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Shareable Link
-                          </label>
-                          <div className="mt-1 flex rounded-md shadow-sm">
-                            <div className="relative flex-1">
-                              <input
-                                type="text"
-                                ref={shareLinkRef}
-                                readOnly
-                                value={generateShareLink()}
-                                className="block w-full rounded-l-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-sm py-2 px-3 truncate"
-                              />
-                            </div>
-                            <button
-                              onClick={copyToClipboard}
-                              className="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
-                            >
-                              {isCopied ? (
-                                <>
-                                  <FiCheck className="h-4 w-4 mr-1.5 text-green-600 dark:text-green-400" />
-                                  Copied!
-                                </>
-                              ) : (
-                                <>
-                                  <FiCopy className="h-4 w-4 mr-1.5" />
-                                  Copy
-                                </>
-                              )}
-                            </button>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                            Email address
-                          </label>
-                          <div className="mt-1">
-                            <input
-                              type="email"
-                              id="email"
-                              value={email}
-                              onChange={(e) => setEmail(e.target.value)}
-                              className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
-                              placeholder="name@example.com"
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end space-x-3">
+        {/* Share Modal */}
+        {showShareModal && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md overflow-hidden"
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+            >
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">Share Meal Plan</h3>
+                <button
+                  onClick={() => {
+                    setShowShareModal(false);
+                    setShareSuccess(false);
+                  }}
+                  className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <FiX className="h-5 w-5" />
+                </button>
+              </div>
+
+              {shareSuccess ? (
+                <div className="p-6 text-center">
+                  <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 dark:bg-green-900/30 mb-4">
+                    <FiCheck className="h-6 w-6 text-green-600 dark:text-green-400" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Shared successfully!</h3>
+                  <p className="text-sm text-gray-500 dark:text-gray-400">
+                    Your meal plan has been {shareMethod === 'email' ? 'shared via email' : 'link copied to clipboard'}.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  <div className="p-6">
+                    <div className="flex rounded-md shadow-sm mb-6">
                       <button
-                        type="button"
-                        onClick={() => {
-                          setShowShareModal(false);
-                          setEmail('');
-                        }}
-                        className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-                      >
-                        Cancel
-                      </button>
-                      <button
-                        type="button"
-                        onClick={shareMethod === 'email' ? shareViaEmail : copyToClipboard}
-                        disabled={shareMethod === 'email' && !email}
-                        className={`inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
-                          (shareMethod === 'email' && !email) ? 'opacity-50 cursor-not-allowed' : ''
+                        onClick={() => setShareMethod('link')}
+                        className={`flex-1 py-2 px-4 text-sm font-medium rounded-l-md ${
+                          shareMethod === 'link'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
                         }`}
                       >
-                        {isSharing ? (
-                          'Sharing...'
-                        ) : shareMethod === 'email' ? (
-                          'Send Email'
-                        ) : (
-                          'Copy Link'
-                        )}
+                        <FiLink className="inline mr-2" /> Copy Link
+                      </button>
+                      <button
+                        onClick={() => setShareMethod('email')}
+                        className={`flex-1 py-2 px-4 text-sm font-medium rounded-r-md ${
+                          shareMethod === 'email'
+                            ? 'bg-blue-600 text-white'
+                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-gray-200 dark:hover:bg-gray-600'
+                        }`}
+                      >
+                        <FiMail className="inline mr-2" /> Email
                       </button>
                     </div>
-                  </>
-                )}
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
+
+                    {shareMethod === 'link' ? (
+                      <div>
+                        <label htmlFor="share-link" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Shareable Link
+                        </label>
+                        <div className="mt-1 flex rounded-md shadow-sm">
+                          <div className="relative flex-1">
+                            <input
+                              type="text"
+                              ref={shareLinkRef}
+                              readOnly
+                              value={generateShareLink()}
+                              className="block w-full rounded-l-md border-gray-300 dark:border-gray-600 bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-300 text-sm py-2 px-3 truncate"
+                            />
+                          </div>
+                          <button
+                            onClick={copyToClipboard}
+                            className="inline-flex items-center px-4 py-2 border border-l-0 border-gray-300 dark:border-gray-600 rounded-r-md bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-200 hover:bg-gray-50 dark:hover:bg-gray-600 focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500 text-sm font-medium"
+                          >
+                            {isCopied ? (
+                              <>
+                                <FiCheck className="h-4 w-4 mr-1.5 text-green-600 dark:text-green-400" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <FiCopy className="h-4 w-4 mr-1.5" />
+                                Copy
+                              </>
+                            )}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div>
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                          Email address
+                        </label>
+                        <div className="mt-1">
+                          <input
+                            type="email"
+                            id="email"
+                            value={email}
+                            onChange={(e) => setEmail(e.target.value)}
+                            className="shadow-sm focus:ring-blue-500 focus:border-blue-500 block w-full sm:text-sm border-gray-300 dark:border-gray-600 rounded-md dark:bg-gray-700 dark:text-white"
+                            placeholder="name@example.com"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-700/50 px-6 py-3 flex justify-end space-x-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowShareModal(false);
+                        setEmail('');
+                      }}
+                      className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md shadow-sm hover:bg-gray-50 dark:bg-gray-600 dark:text-gray-200 dark:border-gray-500 dark:hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={shareMethod === 'email' ? shareViaEmail : copyToClipboard}
+                      disabled={shareMethod === 'email' && !email}
+                      className={`inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-blue-600 border border-transparent rounded-md shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 ${
+                        (shareMethod === 'email' && !email) ? 'opacity-50 cursor-not-allowed' : ''
+                      }`}
+                    >
+                      {isSharing ? (
+                        'Sharing...'
+                      ) : shareMethod === 'email' ? (
+                        'Send Email'
+                      ) : (
+                        'Copy Link'
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </motion.div>
+          </motion.div>
+        )}
+
+        {/* AI Generate Modal */}
+        {showAIGenerate && (
+          <motion.div
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-lg overflow-hidden"
+              initial={{ scale: 0.95, y: 20, opacity: 0 }}
+              animate={{ scale: 1, y: 0, opacity: 1 }}
+              exit={{ scale: 0.95, y: 20, opacity: 0 }}
+            >
+              <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
+                <h3 className="text-lg font-medium text-gray-900 dark:text-white">AI Meal Plan Generator</h3>
+                <button
+                  onClick={() => setShowAIGenerate(false)}
+                  className="text-gray-400 hover:text-gray-500 dark:hover:text-gray-300"
+                >
+                  <FiX className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="p-6">
+                <div className="mb-6">
+                  <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Generate Meal Plan with AI</h3>
+                  
+                  <div className="space-y-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Preferences (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={aiPreferences.preferences.join(', ')}
+                        onChange={(e) => setAiPreferences({
+                          ...aiPreferences,
+                          preferences: e.target.value.split(',').map(p => p.trim()).filter(Boolean)
+                        })}
+                        placeholder="e.g., vegetarian, high-protein, quick"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Dietary Restrictions (comma-separated)
+                      </label>
+                      <input
+                        type="text"
+                        value={aiPreferences.dietaryRestrictions.join(', ')}
+                        onChange={(e) => setAiPreferences({
+                          ...aiPreferences,
+                          dietaryRestrictions: e.target.value.split(',').map(r => r.trim()).filter(Boolean)
+                        })}
+                        placeholder="e.g., gluten-free, dairy-free, nut-free"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                        Custom Instructions (optional)
+                      </label>
+                      <textarea
+                        value={aiPreferences.customPrompt}
+                        onChange={(e) => setAiPreferences({
+                          ...aiPreferences,
+                          customPrompt: e.target.value
+                        })}
+                        placeholder="Any specific instructions for the AI..."
+                        rows="3"
+                        className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 dark:bg-gray-700 dark:text-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3">
+                  <button
+                    onClick={() => setShowAIGenerate(false)}
+                    className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-md hover:bg-gray-50 dark:bg-gray-700 dark:text-gray-200 dark:border-gray-600"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleAIGenerate}
+                    disabled={isGenerating}
+                    className={`px-4 py-2 text-sm font-medium text-white rounded-md ${isGenerating ? 'bg-purple-400' : 'bg-purple-600 hover:bg-purple-700'} flex items-center`}
+                  >
+                    {isGenerating ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Generating...
+                      </>
+                    ) : (
+                      <>
+                        <FiZap className="mr-2 h-4 w-4" />
+                        Generate Plan
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
 
         {/* Meal Plan Templates Modal */}
-        <MealPlanTemplates
-          isOpen={showTemplates}
-          onClose={() => setShowTemplates(false)}
-          onApplyTemplate={applyTemplate}
-          selectedRecipes={selectedRecipes}
-        />
+        {showTemplates && (
+          <MealPlanTemplates
+            isOpen={showTemplates}
+            onClose={() => setShowTemplates(false)}
+            onApplyTemplate={applyTemplate}
+            selectedRecipes={selectedRecipes}
+          />
+        )}
       </AnimatePresence>
     </div>
   );
